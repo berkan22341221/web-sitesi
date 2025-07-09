@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Ödeme - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <h2 class="mb-3">Ödeme İşlemi</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_cart') }}">Sepetim</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Ödeme</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Teslimat Bilgileri</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="checkout-form">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.full_name.label(class="form-label") }}
+                            {{ form.full_name(class="form-control" + (' is-invalid' if form.full_name.errors else ''), placeholder="Ad Soyad") }}
+                            {% for error in form.full_name.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.phone.label(class="form-label") }}
+                                {{ form.phone(class="form-control" + (' is-invalid' if form.phone.errors else ''), placeholder="5XX XXX XX XX") }}
+                                {% for error in form.phone.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.city.label(class="form-label") }}
+                                {{ form.city(class="form-control" + (' is-invalid' if form.city.errors else ''), placeholder="İl") }}
+                                {% for error in form.city.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.district.label(class="form-label") }}
+                            {{ form.district(class="form-control" + (' is-invalid' if form.district.errors else ''), placeholder="İlçe") }}
+                            {% for error in form.district.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.address.label(class="form-label") }}
+                            {{ form.address(rows="3", class="form-control" + (' is-invalid' if form.address.errors else ''), placeholder="Açık adres bilgisi") }}
+                            {% for error in form.address.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h5 class="mb-3">Ödeme Bilgileri</h5>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.card_number.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.card_number(class="form-control" + (' is-invalid' if form.card_number.errors else ''), placeholder="**** **** **** ****") }}
+                                    <span class="input-group-text"><i class="fab fa-cc-visa"></i> <i class="fab fa-cc-mastercard ms-2"></i></span>
+                                </div>
+                                {% for error in form.card_number.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                {{ form.card_name.label(class="form-label") }}
+                                {{ form.card_name(class="form-control" + (' is-invalid' if form.card_name.errors else ''), placeholder="Kart Üzerindeki İsim") }}
+                                {% for error in form.card_name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.card_cvv.label(class="form-label") }}
+                                {{ form.card_cvv(class="form-control" + (' is-invalid' if form.card_cvv.errors else ''), placeholder="CVV") }}
+                                {% for error in form.card_cvv.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.card_expiry.label(class="form-label") }}
+                                {{ form.card_expiry(class="form-control" + (' is-invalid' if form.card_expiry.errors else ''), placeholder="AA/YY") }}
+                                {% for error in form.card_expiry.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-lock me-2"></i> Güvenli Ödeme Yap
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Sipariş Özeti</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for item in cart_items %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=item.product.primary_image) }}" 
+                                         alt="{{ item.product.name }}" 
+                                         class="img-fluid rounded" 
+                                         style="width: 50px; height: 50px; object-fit: cover;">
+                                    <div class="ms-2">
+                                        <h6 class="mb-0">{{ item.product.name }}</h6>
+                                        <small class="text-muted">{{ item.quantity }} adet x {{ "%.2f"|format(item.product.price) }} TL</small>
+                                    </div>
+                                </div>
+                                <span class="fw-bold">{{ "%.2f"|format(item.product.price * item.quantity) }} TL</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Ara Toplam:</span>
+                        <span>{{ "%.2f"|format(total) }} TL</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Kargo Ücreti:</span>
+                        <span>Ücretsiz</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-0">
+                        <h5 class="mb-0">Toplam:</h5>
+                        <h5 class="mb-0">{{ "%.2f"|format(total) }} TL</h5>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-3">Güvenli Alışveriş</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><i class="fas fa-lock text-success me-2"></i> 256-bit SSL ile güvendesiniz</li>
+                        <li class="mb-2"><i class="fas fa-shield-alt text-success me-2"></i> Bilgileriniz 3. şahıslarla paylaşılmaz</li>
+                        <li class="mb-0"><i class="fas fa-credit-card text-success me-2"></i> Ödeme bilgileriniz güvende</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Format card number
+    const cardNumber = document.getElementById('{{ form.card_number.id }}');
+    if (cardNumber) {
+        cardNumber.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+            e.target.value = value;
+        });
+    }
+    
+    // Format expiry date
+    const expiryDate = document.getElementById('{{ form.card_expiry.id }}');
+    if (expiryDate) {
+        expiryDate.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            e.target.value = value;
+        });
+    }
+    
+    // Format phone number
+    const phone = document.getElementById('{{ form.phone.id }}');
+    if (phone) {
+        phone.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                value = value.match(/(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+                value = value[1] + (value[2] ? ' ' + value[2] : '') + (value[3] ? ' ' + value[3] : '') + (value[4] ? ' ' + value[4] : '');
+            }
+            e.target.value = value.trim();
+        });
+    }
+    
+    // Form submission
+    const form = document.getElementById('checkout-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Remove any non-numeric characters from card number before submission
+            if (cardNumber) {
+                cardNumber.value = cardNumber.value.replace(/\s+/g, '');
+            }
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>İşleniyor...';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

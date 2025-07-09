@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+
+{% block title %}Sepetim - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <h2 class="mb-3">Alışveriş Sepetim</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Sepetim</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% if cart_items %}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Ürün</th>
+                                    <th>Fiyat</th>
+                                    <th class="text-center">Adet</th>
+                                    <th class="text-end">Toplam</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart_items %}
+                                <tr data-item-id="{{ item.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.images %}
+                                                {% set primary_image = item.product.images|selectattr('is_primary', 'equalto', True)|first or item.product.images[0] %}
+                                                <img src="{{ url_for('static', filename=primary_image.image_path) }}" 
+                                                     alt="{{ item.product.name }}" 
+                                                     class="img-thumbnail me-3" 
+                                                     style="width: 80px; height: 80px; object-fit: contain;">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='images/no-image.png') }}" 
+                                                     alt="Resim yok" 
+                                                     class="img-thumbnail me-3" 
+                                                     style="width: 80px; height: 80px; object-fit: contain;">
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                                <p class="text-muted mb-0">Stok: {{ item.product.stock }} adet</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ "%.2f"|format(item.product.price) }} TL</td>
+                                    <td class="text-center">
+                                        <div class="input-group input-group-sm" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary update-quantity" 
+                                                    data-action="decrement" 
+                                                    {% if item.quantity <= 1 %}disabled{% endif %}>
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" 
+                                                   class="form-control text-center quantity-input" 
+                                                   value="{{ item.quantity }}" 
+                                                   min="1" 
+                                                   max="{{ item.product.stock }}" 
+                                                   data-item-id="{{ item.id }}">
+                                            <button class="btn btn-outline-secondary update-quantity" 
+                                                    data-action="increment"
+                                                    {% if item.quantity >= item.product.stock %}disabled{% endif %}>
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="text-end item-total">{{ "%.2f"|format(item.product.price * item.quantity) }} TL</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-danger remove-item" 
+                                                data-item-id="{{ item.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Sipariş Özeti</h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Ara Toplam:</span>
+                        <span id="subtotal">{{ "%.2f"|format(total) }} TL</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Kargo Ücreti:</span>
+                        <span>Ücretsiz</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-4">
+                        <h5>Toplam:</h5>
+                        <h5 id="cart-total">{{ "%.2f"|format(total) }} TL</h5>
+                    </div>
+                    <a href="{{ url_for('checkout') }}" class="btn btn-primary w-100 py-2">
+                        Ödemeye Geç
+                    </a>
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="fas fa-lock me-1"></i> Ödeme işlemleriniz güvendedir.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="mb-3">Güvenli Ödeme Seçenekleri</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-light text-dark p-2"><i class="fab fa-cc-visa fa-2x"></i></span>
+                        <span class="badge bg-light text-dark p-2"><i class="fab fa-cc-mastercard fa-2x"></i></span>
+                        <span class="badge bg-light text-dark p-2"><i class="fab fa-cc-paypal fa-2x"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center py-5">
+            <div class="mb-4">
+                <i class="fas fa-shopping-cart fa-4x text-muted"></i>
+            </div>
+            <h4 class="mb-3">Sepetiniz Boş Görünüyor</h4>
+            <p class="text-muted mb-4">Alışverişe başlamak için ürün ekleyin.</p>
+            <a href="{{ url_for('products') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i> Alışverişe Devam Et
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to update quantity input and buttons state
+    function updateQuantityInput(input, newValue) {
+        const max = parseInt(input.max) || 999;
+        const min = 1;
+        
+        // Validate and set the new value
+        newValue = Math.max(Math.min(newValue, max), min);
+        input.value = newValue;
+        
+        // Update buttons state
+        const inputGroup = input.closest('.input-group');
+        const incrementBtn = inputGroup.querySelector('[data-action="increment"]');
+        const decrementBtn = inputGroup.querySelector('[data-action="decrement"]');
+        
+        if (incrementBtn) incrementBtn.disabled = newValue >= max;
+        if (decrementBtn) decrementBtn.disabled = newValue <= min;
+        
+        return newValue;
+    }
+    
+    // Handle plus/minus buttons
+    document.querySelectorAll('.update-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const input = this.closest('.input-group').querySelector('.quantity-input');
+            const itemId = input.dataset.itemId;
+            let newValue = parseInt(input.value);
+            
+            // Determine new value based on action
+            if (action === 'increment') {
+                newValue++;
+            } else {
+                newValue--;
+            }
+            
+            // Update UI immediately for better UX
+            newValue = updateQuantityInput(input, newValue);
+            
+            // Send update to server
+            updateCart(itemId, action);
+        });
+    });
+    
+    // Handle direct input changes
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        // Handle input blur/change
+        const handleInputChange = () => {
+            const itemId = input.dataset.itemId;
+            const newValue = parseInt(input.value) || 1;
+            
+            // Update UI
+            const updatedValue = updateQuantityInput(input, newValue);
+            
+            // Only send update if value actually changed
+            if (newValue !== updatedValue) {
+                input.value = updatedValue;
+            }
+            
+            // Send update to server with the final value
+            updateCart(itemId, 'set', updatedValue);
+        };
+        
+        // Handle Enter key press
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.blur(); // Triggers the blur/change event
+            }
+        });
+        
+        // Add event listeners
+        input.addEventListener('change', handleInputChange);
+        input.addEventListener('blur', handleInputChange);
+    });
+    
+    // Update cart function
+    function updateCart(itemId, action, value = null) {
+        const url = `/cart/update/${itemId}`;
+        const data = {};
+        
+        // For increment/decrement actions, we'll handle the quantity calculation in the backend
+        if (action === 'increment' || action === 'decrement') {
+            data.action = action;
+        } else {
+            // For direct input, send the quantity directly
+            data.quantity = value;
+        }
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}',
+                'X-Requested-With': 'XMLHttpRequest'  // Helps identify AJAX requests
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the item total
+                const itemTotal = document.querySelector(`tr[data-item-id="${itemId}"] .item-total`);
+                if (itemTotal) {
+                    itemTotal.textContent = `${data.item_total.toFixed(2)} TL`;
+                }
+                
+                // Update the cart total
+                const cartTotal = document.getElementById('cart-total');
+                const subtotal = document.getElementById('subtotal');
+                if (cartTotal) {
+                    cartTotal.textContent = `${data.grand_total.toFixed(2)} TL`;
+                }
+                if (subtotal) {
+                    subtotal.textContent = `${data.subtotal.toFixed(2)} TL`;
+                }
+                
+                // Update the cart count in the navbar if it exists
+                const cartCount = document.querySelector('.cart-count');
+                if (cartCount && data.cart_count !== undefined) {
+                    cartCount.textContent = data.cart_count;
+                    cartCount.style.display = data.cart_count > 0 ? 'inline-block' : 'none';
+                }
+                
+                // Show success message
+                showToast('Başarılı', 'Sepet güncellendi', 'success');
+            } else {
+                // Show error message
+                showToast('Hata', data.message || 'Bir hata oluştu', 'error');
+                
+                // Reset input value if there was an error
+                const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
+                if (input && data.quantity !== undefined) {
+                    input.value = data.quantity;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Hata', 'Bir hata oluştu', 'error');
+        });
+    }
+    
+    // Handle remove item button
+    document.querySelectorAll('.remove-item').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const row = this.closest('tr');
+            
+            if (confirm('Bu ürünü sepetinizden çıkarmak istediğinize emin misiniz?')) {
+                fetch(`/cart/remove/${itemId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the row from the table
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                            
+                            // Update cart count
+                            const cartCount = document.querySelector('.cart-count');
+                            if (cartCount && data.cart_count !== undefined) {
+                                cartCount.textContent = data.cart_count;
+                                cartCount.style.display = data.cart_count > 0 ? 'inline-block' : 'none';
+                            }
+                            
+                            // If cart is empty, reload the page
+                            if (data.cart_count === 0) {
+                                location.reload();
+                            } else {
+                                // Update the cart total
+                                const cartTotal = document.getElementById('cart-total');
+                                const subtotal = document.getElementById('subtotal');
+                                if (cartTotal) {
+                                    cartTotal.textContent = `${data.grand_total.toFixed(2)} TL`;
+                                }
+                                if (subtotal) {
+                                    subtotal.textContent = `${data.subtotal.toFixed(2)} TL`;
+                                }
+                            }
+                            
+                            showToast('Başarılı', 'Ürün sepetinizden kaldırıldı', 'success');
+                        }, 300);
+                    } else {
+                        showToast('Hata', data.message || 'Ürün kaldırılırken bir hata oluştu', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Hata', 'Bir hata oluştu', 'error');
+                });
+            }
+        });
+    });
+    
+    // Toast notification function
+    function showToast(title, message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) return;
+        
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong><br>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Initialize and show the toast
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        
+        bsToast.show();
+        
+        // Remove the toast from DOM after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+        alert(`${title}: ${message}`);
+    }
+    
+    // Handle checkout button click
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', function() {
+            // Check if cart is not empty
+            const cartItems = document.querySelectorAll('tbody tr');
+            if (cartItems.length === 0) {
+                showToast('Hata', 'Sepetiniz boş', 'error');
+                return;
+            }
+            
+            // Show loading state
+            const originalText = checkoutBtn.innerHTML;
+            checkoutBtn.disabled = true;
+            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Yönlendiriliyor...';
+            
+            // Simulate API call (replace with actual checkout logic)
+            setTimeout(() => {
+                // For now, just show a message
+                showToast('Bilgi', 'Ödeme işlemi şu anda kullanıma açık değildir.', 'info');
+                
+                // Restore button state
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = originalText;
+            }, 1000);
+        });
+    }
+});
+</script>
+{% endblock %}

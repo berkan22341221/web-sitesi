@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Çağrı İletişim{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Page Transition Styles */
+        .page-transition {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .transition-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .transition-logo {
+            font-family: 'Poppins', 'Montserrat', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            animation: textGlow 2s infinite alternate;
+        }
+        
+        @keyframes textGlow {
+            from {
+                text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            }
+            to {
+                text-shadow: 0 0 20px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 255, 255, 0.4);
+            }
+        }
+        
+        /* Ensure content is above the transition */
+        #page-content {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Make sure footer stays at bottom */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .transition-logo {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Page Transition Overlay -->
+    <div id="page-transition" class="page-transition">
+        <div class="transition-content">
+            <div class="transition-logo">Çağrı İletişim</div>
+        </div>
+    </div>
+    
+    <!-- Main Content Wrapper -->
+    <div id="page-content">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">Çağrı İletişim</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Ana Sayfa</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="productsDropdown" role="button" data-bs-toggle="dropdown">
+                            Ürünler
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('products', category='phone') }}">Telefonlar</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('products', category='accessory') }}">Aksesuarlar</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('products') }}">Tüm Ürünler</a></li>
+                        </ul>
+                    </li>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Yönetim Paneli</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user"></i> {{ current_user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-circle me-2"></i>Profilim</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('favorites') }}"><i class="fas fa-heart me-2"></i>Favorilerim</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('user_orders') }}"><i class="fas fa-shopping-bag me-2"></i>Siparişlerim</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Çıkış Yap</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt"></i> Giriş Yap
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">
+                                <i class="fas fa-user-plus"></i> Kayıt Ol
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="{{ url_for('view_cart') }}">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
+                                {{ current_user.cart_items|length if current_user.is_authenticated else 0 }}
+                            </span>
+                            <span class="ms-1 d-none d-md-inline">Sepet</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center" role="alert">
+                        {% if category == 'success' %}
+                            <i class="fas fa-check-circle me-2"></i>
+                        {% elif category == 'danger' %}
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle me-2"></i>
+                        {% endif %}
+                        <div>{{ message }}</div>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <style>
+        /* Custom Alert Styles */
+        .alert {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        
+        .alert-success {
+            background-color: #28a745;
+        }
+        
+        .alert-danger {
+            background-color: #dc3545;
+        }
+        
+        .alert-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .alert-info {
+            background-color: #17a2b8;
+        }
+        
+        .alert-primary {
+            background-color: #007bff;
+        }
+        
+        .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+            opacity: 0.8;
+        }
+        
+        .btn-close:hover {
+            opacity: 1;
+        }
+        
+        .alert i {
+            font-size: 1.25rem;
+        }
+    </style>
+
+    <!-- Main Content -->
+    <main class="py-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>Hakkımızda</h5>
+                    <p>Çağrı İletişim olarak en kaliteli telefon ve aksesuarları uygun fiyatlarla sizlere sunuyoruz.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Hızlı Bağlantılar</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white">Gizlilik Politikası</a></li>
+                        <li><a href="#" class="text-white">Kullanım Koşulları</a></li>
+                        <li><a href="#" class="text-white">İade Politikası</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>İletişim</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-map-marker-alt me-2"></i> İstanbul, Türkiye</li>
+                        <li><i class="fas fa-phone me-2"></i> +90 541 966 30 34</li>
+                        <li><i class="fas fa-envelope me-2"></i> 1adalar2@gmail.com</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p class="mb-0">&copy; 2025 Çağrı İletişim. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <!-- Initialize Bootstrap tooltips and handle modals -->
+    <script>
+        // Function to clean up modal backdrops
+        function cleanupModalBackdrops() {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                backdrop.remove();
+            });
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+
+        // Initialize tooltips and handle modals
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Initialize popovers
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+
+            // Handle modal hidden event globally
+            document.addEventListener('hidden.bs.modal', function (event) {
+                cleanupModalBackdrops();
+            });
+
+            // Also handle escape key and clicks outside modal
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    cleanupModalBackdrops();
+                }
+            });
+
+            document.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal-backdrop')) {
+                    cleanupModalBackdrops();
+                }
+            });
+        });
+    </script>
+    
+    <!-- Page Transition Script -->
+    <script>
+        // Initialize GSAP
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial animation - fade out the transition
+            gsap.to('#page-transition', {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.inOut',
+                onComplete: function() {
+                    document.getElementById('page-transition').style.display = 'none';
+                }
+            });
+            
+            // Animate in the logo
+            gsap.to('.transition-logo', {
+                opacity: 1,
+                y: 0,
+                duration: 0.8,
+                ease: 'power2.out',
+                delay: 0.3
+            });
+            
+            // Set up click handlers for all internal links
+            document.querySelectorAll('a').forEach(link => {
+                // Only handle internal links
+                if (link.href && 
+                    link.href.startsWith(window.location.origin) && 
+                    !link.classList.contains('no-transition') && 
+                    link.href !== '#' &&
+                    !link.getAttribute('data-bs-toggle') &&
+                    !link.classList.contains('dropdown-toggle')) {
+                    
+                    link.addEventListener('click', function(e) {
+                        // Skip if it's a dropdown or has specific class
+                        if (this.getAttribute('data-bs-toggle') === 'dropdown' || 
+                            this.classList.contains('no-transition') ||
+                            this.getAttribute('target') === '_blank') {
+                            return true;
+                        }
+                        
+                        e.preventDefault();
+                        const href = this.href;
+                        
+                        // Show transition overlay
+                        const transition = document.getElementById('page-transition');
+                        transition.style.display = 'flex';
+                        
+                        // Animate in
+                        gsap.to(transition, {
+                            opacity: 1,
+                            duration: 0.5,
+                            ease: 'power2.inOut',
+                            onComplete: function() {
+                                // Navigate after animation completes
+                                window.location.href = href;
+                            }
+                        });
+                        
+                        // Animate out the content
+                        gsap.to('#page-content', {
+                            y: 30,
+                            opacity: 0,
+                            duration: 0.5,
+                            ease: 'power2.inOut'
+                        });
+                    });
+                }
+            });
+        });
+        
+        // Function to add CSRF token to all forms
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            const csrfToken = '{{ csrf_token() }}';
+            
+            forms.forEach(function(form) {
+                // Skip if form already has a CSRF token
+                if (form.querySelector('input[name="csrf_token"]')) {
+                    return;
+                }
+                
+                // Create and append CSRF token input
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+            });
+        });
+    </script>
+    <!-- Toast Container - Initially hidden -->
+    <div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11; background-color: transparent;">
+        <!-- Toast notifications will be inserted here -->
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

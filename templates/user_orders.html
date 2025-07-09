@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Siparişlerim - {{ current_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('profile') }}">Profilim</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Tüm Siparişlerim</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">Tüm Siparişlerim</h2>
+                <a href="{{ url_for('profile') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Profilime Dön
+                </a>
+            </div>
+            
+            {% if orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sipariş No</th>
+                                <th>Tarih</th>
+                                <th>Ürünler</th>
+                                <th>Toplam Tutar</th>
+                                <th>Durum</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>#{{ order.order.id }}</td>
+                                <td>{{ order.order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                <td>
+                                    {% for item in order.order.items %}
+                                        {{ item.product.name }} ({{ item.quantity }} adet)<br>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ "%.2f TL"|format(order.total_price) }}</td>
+                                <td>
+                                    {% if order.order.status == 'completed' %}
+                                        <span class="badge bg-success">Tamamlandı</span>
+                                    {% elif order.order.status == 'processing' %}
+                                        <span class="badge bg-warning text-dark">İşlemde</span>
+                                    {% elif order.order.status == 'shipped' %}
+                                        <span class="badge bg-info">Kargoda</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ order.order.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap">
+                                    <a href="{{ url_for('order_confirmation', order_id=order.order.id) }}" 
+                                       class="btn btn-sm btn-outline-primary me-1"
+                                       title="Sipariş Detayı">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if order.order.status in ['pending', 'processing'] %}
+                                    <form action="{{ url_for('cancel_order', order_id=order.order.id) }}" method="POST" class="d-inline" 
+                                          onsubmit="return confirm('Bu siparişi iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Siparişi İptal Et">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="py-5">
+                        <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                        <h4>Henüz siparişiniz bulunmuyor</h4>
+                        <p class="text-muted">Alışverişe başlamak için ürünler sayfamızı ziyaret edin.</p>
+                        <a href="{{ url_for('products') }}" class="btn btn-primary mt-3">
+                            <i class="fas fa-shopping-cart me-2"></i>Alışverişe Başla
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge {
+        font-weight: 500;
+        padding: 0.4em 0.8em;
+    }
+    
+    .order-card {
+        transition: transform 0.2s;
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}

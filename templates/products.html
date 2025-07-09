@@ -1,0 +1,707 @@
+{% extends "base.html" %}
+
+{% block title %}Ürünler - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <h1 class="mb-3">Ürünler</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if category == 'phone' %}
+                            Telefonlar
+                        {% elif category == 'accessory' %}
+                            Aksesuarlar
+                        {% else %}
+                            Tüm Ürünler
+                        {% endif %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-lg-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    Kategoriler
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action {% if category == 'all' %}active{% endif %}">
+                        Tüm Ürünler
+                    </a>
+                    <a href="{{ url_for('products', category='phone') }}" class="list-group-item list-group-item-action {% if category == 'phone' %}active{% endif %}">
+                        Telefonlar
+                    </a>
+                    <a href="{{ url_for('products', category='accessory') }}" class="list-group-item list-group-item-action {% if category == 'accessory' %}active{% endif %}">
+                        Aksesuarlar
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-primary text-white">
+                    Filtrele
+                </div>
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Fiyat Aralığı</h6>
+                    <div class="d-flex justify-content-between">
+                        <input type="number" class="form-control form-control-sm me-2" placeholder="Min">
+                        <input type="number" class="form-control form-control-sm" placeholder="Maks">
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100 mt-3">Filtrele</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Products -->
+        <div class="col-lg-9">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2">Sırala:</span>
+                        <select class="form-select form-select-sm" style="width: auto;">
+                            <option selected>Varsayılan</option>
+                            <option>Fiyat: Düşükten Yükseğe</option>
+                            <option>Fiyat: Yüksekten Düşüğe</option>
+                            <option>En Yeniler</option>
+                            <option>En Çok Satanlar</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="d-inline-block me-2">
+                        <span class="me-2">Görünüm:</span>
+                        <div class="btn-group view-toggle" role="group">
+                            <button type="button" class="btn btn-outline-secondary grid-view active" data-view="grid">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary list-view" data-view="list">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row products-container" data-view="grid">
+                {% if products %}
+                    {% for product in products %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100 product-card">
+                            <div class="position-relative" style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa;">
+                                {% if product.images %}
+                                    {% set main_image = product.images|selectattr('is_primary', 'equalto', True)|first or product.images[0] %}
+                                    {% set placeholder_url = url_for('static', filename='images/placeholder.svg') %}
+                                    <img src="{{ url_for('static', filename=main_image.image_path) }}" 
+                                         class="img-fluid" 
+                                         alt="{{ product.name }}" 
+                                         style="max-height: 100%; max-width: 100%; object-fit: contain;" 
+                                         onerror="this.onerror=null; this.src='{{ placeholder_url }}'"
+                                    >
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='images/placeholder.svg') }}" class="img-fluid" alt="Ürün resmi yok" style="max-height: 100%; max-width: 100%; object-fit: contain; padding: 2rem;">
+                                {% endif %}
+                                {% if current_user.is_authenticated %}
+                                <div class="position-absolute top-0 end-0 p-2 d-flex">
+                                    <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" 
+                                            onclick="shareProduct('{{ product.id }}')"
+                                            title="Paylaş">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-light rounded-circle shadow-sm favorite-btn" 
+                                            onclick="toggleFavorite(this)"
+                                            data-product-id="{{ product.id }}"
+                                            title="{% if current_user.is_authenticated and product.favorited_by|selectattr('user_id', 'equalto', current_user.id)|list|length > 0 %}Favorilerden Çıkar{% else %}Favorilere Ekle{% endif %}">
+                                        <i class="{% if current_user.is_authenticated and product.favorited_by|selectattr('user_id', 'equalto', current_user.id)|list|length > 0 %}fas text-danger{% else %}far{% endif %} fa-heart"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
+                                {% if product.stock <= 0 %}
+                                <div class="out-of-stock-overlay">
+                                    <span class="badge bg-danger">Tükendi</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <div class="category small text-muted mb-1">
+                                    {{ "Telefon" if product.category == "phone" else "Aksesuar" }}
+                                </div>
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('product_detail', product_id=product.id) }}" class="text-decoration-none text-dark">
+                                        {{ product.name }}
+                                    </a>
+                                </h5>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div class="price">
+                                        <span class="h5 text-primary">{{ "%.2f"|format(product.price) }} TL</span>
+                                        {% if product.old_price %}
+                                        <small class="text-muted text-decoration-line-through ms-2">{{ "%.2f"|format(product.old_price) }} TL</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="rating small text-warning">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="far fa-star"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top-0">
+                                <div class="d-grid gap-2">
+                                    {% if current_user.is_authenticated and current_user.is_admin %}
+                                    <div class="btn-group w-100 mb-2" role="group">
+                                        <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit me-1"></i> Düzenle
+                                        </a>
+                                        <form action="{{ url_for('delete_product', product_id=product.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash me-1"></i> Sil
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="btn-group w-100" role="group">
+                                        {% if product.stock > 0 %}
+                                        <button class="btn btn-outline-primary btn-sm add-to-cart" data-product-id="{{ product.id }}">
+                                            <i class="fas fa-shopping-cart me-1"></i> Sepete Ekle
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                                            Stokta Yok
+                                        </button>
+                                        {% endif %}
+                                        <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-search me-1"></i> İncele
+                                        </a>
+                                        <a href="{{ url_for('compare_products', product_id=product.id) }}" class="btn btn-outline-info btn-sm">
+                                            <i class="fas fa-exchange-alt me-1"></i> Karşılaştır
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="col-12 text-center py-5">
+                    <div class="py-5">
+                        <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                        <h4>Ürün bulunamadı</h4>
+                        <p class="text-muted">Aradığınız kriterlere uygun ürün bulunamadı.</p>
+                        <a href="{{ url_for('products') }}" class="btn btn-primary mt-3">Tüm Ürünleri Gör</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if products %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Önceki</a>
+                    </li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Sonraki</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle favorite status
+function toggleFavorite(button) {
+    if (!button) {
+        console.error('Button element not found');
+        return;
+    }
+    
+    const productId = button.dataset.productId;
+    if (!productId) {
+        console.error('Product ID not found in button dataset');
+        return;
+    }
+    
+    const icon = button.querySelector('i');
+    if (!icon) {
+        console.error('Icon element not found in button');
+        return;
+    }
+    
+    console.log('Toggle favorite called for product:', productId);
+    
+    // Show loading state
+    const originalHTML = icon.outerHTML;
+    icon.className = 'fas fa-spinner fa-spin';
+    
+    console.log('Sending request to /favorite/' + productId);
+    
+    fetch(`/favorite/${productId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Update the heart icon based on status
+            if (data.status === 'added') {
+                icon.className = 'fas fa-heart text-danger';
+                button.title = 'Favorilerden Çıkar';
+                showToast('Başarılı', data.message || 'Ürün favorilere eklendi', 'success');
+            } else if (data.status === 'removed') {
+                icon.className = 'far fa-heart';
+                button.title = 'Favorilere Ekle';
+                showToast('Başarılı', data.message || 'Ürün favorilerden çıkarıldı', 'info');
+            }
+        } else {
+            // Revert to original state on error
+            icon.outerHTML = originalHTML;
+            showToast('Hata', data.message || 'İşlem başarısız oldu', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling favorite:', error);
+        // Revert to original state on error
+        icon.outerHTML = originalHTML;
+        showToast('Hata', 'İşlem sırasında bir hata oluştu', 'error');
+    });
+}
+
+// Share product
+function shareProduct(productId) {
+    try {
+        // Get product details
+        const productCard = document.querySelector('[data-product-id="' + productId + '"]').closest('.product-card');
+        if (!productCard) {
+            throw new Error('Product card not found');
+        }
+        
+        const titleElement = productCard.querySelector('.card-title a');
+        if (!titleElement) {
+            throw new Error('Product title not found');
+        }
+        
+        const productName = titleElement.textContent;
+        
+        // Create the product URL using the URL from the product detail link
+        const productLink = productCard.querySelector('.card-title a');
+        let productUrl = productLink ? productLink.href : `${window.location.origin}/product/${productId}`;
+        
+        // Try to use the Web Share API if available
+        if (navigator.share) {
+            navigator.share({
+                title: productName,
+                text: 'Bu ürünü incelemek ister misiniz?',
+                url: productUrl
+            })
+            .then(() => showToast('Başarılı', 'Ürün paylaşıldı', 'success'))
+            .catch(error => {
+                console.error('Error sharing:', error);
+                // Fallback to clipboard if sharing fails
+                copyToClipboard(productUrl);
+            });
+        } else {
+            // Fallback for browsers that don't support Web Share API
+            copyToClipboard(productUrl);
+        }
+    } catch (error) {
+        console.error('Error in shareProduct:', error);
+        showToast('Hata', 'Paylaşım sırasında bir hata oluştu', 'error');
+    }
+}
+
+// Copy to clipboard as fallback
+function copyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+        document.execCommand('copy');
+        showToast('Başarılı', 'Ürün bağlantısı panoya kopyalandı', 'success');
+    } catch (err) {
+        console.error('Error copying to clipboard:', err);
+        showToast('Hata', 'Bağlantı kopyalanırken bir hata oluştu', 'error');
+    }
+    
+    document.body.removeChild(textarea);
+}
+
+// Toast notification function
+function showToast(title, message, type = 'info') {
+    const toastContainer = document.createElement('div');
+    toastContainer.className = 'position-fixed top-0 end-0 p-3';
+    toastContainer.style.zIndex = '1100';
+    
+    const toast = document.createElement('div');
+    toast.className = `toast show align-items-center text-white bg-${type} border-0`;
+    toast.role = 'alert';
+    toast.ariaLive = 'assertive';
+    toast.ariaAtomic = 'true';
+    
+    const toastBody = document.createElement('div');
+    toastBody.className = 'd-flex';
+    
+    const toastContent = document.createElement('div');
+    toastContent.className = 'toast-body';
+    toastContent.innerHTML = `<strong>${title}</strong><br>${message}`;
+    
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'btn-close btn-close-white me-2 m-auto';
+    closeButton.setAttribute('data-bs-dismiss', 'toast');
+    closeButton.setAttribute('aria-label', 'Close');
+    
+    toastBody.appendChild(toastContent);
+    toastBody.appendChild(closeButton);
+    toast.appendChild(toastBody);
+    toastContainer.appendChild(toast);
+    
+    document.body.appendChild(toastContainer);
+    
+    // Auto-remove toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        setTimeout(() => {
+            document.body.removeChild(toastContainer);
+        }, 300);
+    }, 3000);
+    
+    // Close button functionality
+    closeButton.addEventListener('click', () => {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        setTimeout(() => {
+            if (toastContainer.parentNode) {
+                document.body.removeChild(toastContainer);
+            }
+        }, 300);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // View toggle functionality
+    const viewToggle = document.querySelector('.view-toggle');
+    const productsContainer = document.querySelector('.products-container');
+    
+    // Check for saved view preference
+    const savedView = localStorage.getItem('productView') || 'grid';
+    if (savedView === 'list') {
+        productsContainer.classList.add('list-view');
+        document.querySelector('.grid-view').classList.remove('active');
+        document.querySelector('.list-view').classList.add('active');
+    }
+    
+    // Handle view toggle clicks
+    viewToggle.addEventListener('click', function(e) {
+        const target = e.target.closest('button');
+        if (!target) return;
+        
+        const view = target.dataset.view;
+        const buttons = viewToggle.querySelectorAll('button');
+        
+        buttons.forEach(btn => btn.classList.remove('active'));
+        target.classList.add('active');
+        
+        if (view === 'list') {
+            productsContainer.classList.add('list-view');
+            localStorage.setItem('productView', 'list');
+        } else {
+            productsContainer.classList.remove('list-view');
+            localStorage.setItem('productView', 'grid');
+        }
+    });
+    
+    // Toggle favorite status
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const icon = this.querySelector('i');
+            const isFavorite = icon.classList.contains('fas');
+            
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            if (!csrfToken) {
+                console.error('CSRF token not found');
+                showToast('Hata', 'Güvenlik hatası. Lütfen sayfayı yenileyin.', 'error');
+                return;
+            }
+
+            fetch(`/favorite/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'Network response was not ok');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'removed') {
+                    icon.classList.remove('fas', 'text-danger');
+                    icon.classList.add('far');
+                    this.title = 'Favorilere Ekle';
+                    showToast('Başarılı', 'Ürün favorilerden kaldırıldı', 'success');
+                } else if (data.status === 'added') {
+                    icon.classList.remove('far');
+                    icon.classList.add('fas', 'text-danger');
+                    this.title = 'Favorilerden Kaldır';
+                    showToast('Başarılı', 'Ürün favorilere eklendi', 'success');
+                } else {
+                    throw new Error(data.message || 'Bilinmeyen bir hata oluştu');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorMessage = error.message || 'İşlem sırasında bir hata oluştu';
+                showToast('Hata', errorMessage, 'error');
+            });
+        });
+    });
+
+    // Add to cart functionality
+    function addToCart(productId) {
+        fetch(`/add_to_cart/${productId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                quantity: 1
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || 'Network response was not ok');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update cart count
+                const cartCount = document.getElementById('cart-count');
+                if (cartCount) {
+                    cartCount.textContent = data.cart_count;
+                }
+                showToast('Başarılı', data.message || 'Ürün sepete eklendi', 'success');
+            } else {
+                throw new Error(data.message || 'Ürün sepete eklenirken bir hata oluştu');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const errorMessage = error.message || 'Ürün sepete eklenirken bir hata oluştu';
+            showToast('Hata', errorMessage, 'error');
+        });
+    }
+
+    // Add to cart button click handler
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            addToCart(productId);
+        });
+    });
+
+    // Toast notification function
+    function showToast(title, message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.top = '20px';
+            toastContainer.style.right = '20px';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Determine the background class based on type
+        let bgClass = 'bg-info';
+        if (type === 'error' || type === 'danger') {
+            bgClass = 'bg-danger';
+        } else if (type === 'success') {
+            bgClass = 'bg-success';
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast show align-items-center text-white ${bgClass} border-0`;
+        toast.role = 'alert';
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.style.minWidth = '300px';
+        toast.style.marginBottom = '10px';
+        toast.style.borderRadius = '0.25rem';
+        
+        // Add toast content
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center">
+                    <strong class="me-2">${title}:</strong>
+                    <span>${message}</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+            </div>
+        `;
+        
+        // Add to container
+        toastContainer.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 5000);
+        
+        // Close button functionality
+        const closeButton = toast.querySelector('.btn-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            });
+        }
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* List view styles */
+    .products-container.list-view .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .products-container.list-view .product-card {
+        flex-direction: row;
+        height: 100%;
+    }
+    
+    .products-container.list-view .product-card > div:first-child {
+        flex: 0 0 200px;
+        height: 200px;
+    }
+    
+    .products-container.list-view .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .products-container.list-view .card-footer {
+        flex: 0 0 auto;
+        width: 300px;
+        border-left: 1px solid rgba(0,0,0,.125);
+        display: flex;
+        align-items: center;
+    }
+    
+    .view-toggle .active {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+</style>
+<style>
+.product-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(0,0,0,.125);
+    overflow: hidden;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.product-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.product-card:hover .product-actions {
+    opacity: 1;
+}
+
+.out-of-stock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.out-of-stock-overlay .badge {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+.rating {
+    color: #ffc107;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0.5rem 0;
+    margin-bottom: 0;
+}
+</style>
+{% endblock %}
+
+

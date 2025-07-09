@@ -1,0 +1,570 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Sipariş Yönetimi - Yönetici Paneli{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Sipariş Yönetimi</h1>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Tüm Siparişler</h6>
+            <div class="dropdown no-arrow">
+                <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="filterDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-filter fa-sm"></i> Filtrele
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="filterDropdown">
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='all') }}">Tümü</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='pending') }}">Bekliyor</a>
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='processing') }}">İşleniyor</a>
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='shipped') }}">Kargoda</a>
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='delivered') }}">Teslim Edildi</a>
+                    <a class="dropdown-item" href="{{ url_for('admin_orders', status='cancelled') }}">İptal Edildi</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Ürün</th>
+                            <th>Miktar</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th>Tarih</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if orders %}
+                            {% for order in orders %}
+                                {% set user = users.get(order.user_id) %}
+                                {% if order.items %}
+                                    {% for item in order.items %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>
+                                            {{ user.username if user else 'Silinmiş Kullanıcı' }}
+                                        </td>
+                                        <td>
+                                            {{ item.product.name if item and item.product else 'Silinmiş Ürün' }}
+                                        </td>
+                                        <td>{{ item.quantity if item else 0 }}</td>
+                                        <td>{{ "%.2f TL"|format(item.subtotal) if item else '0.00 TL' }}</td>
+                                        <td>
+                                            <span class="badge badge-{{ 
+                                                'warning' if order.status == 'pending' else
+                                                'info' if order.status == 'processing' else
+                                                'primary' if order.status == 'shipped' else
+                                                'success' if order.status == 'delivered' else
+                                                'danger' if order.status == 'cancelled' else 'secondary' }}">
+                                                {{ 
+                                                    'Bekliyor' if order.status == 'pending' else
+                                                    'İşleniyor' if order.status == 'processing' else
+                                                    'Kargoda' if order.status == 'shipped' else
+                                                    'Teslim Edildi' if order.status == 'delivered' else
+                                                    'İptal Edildi' if order.status == 'cancelled' else 'Bilinmiyor' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else 'Bilinmiyor' }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#orderDetails{{ order.id }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="statusDropdown{{ order.id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu" aria-labelledby="statusDropdown{{ order.id }}">
+                                                        <a class="dropdown-item" href="{{ url_for('update_order_status', order_id=order.id, status='pending') }}">Bekliyor</a>
+                                                        <a class="dropdown-item" href="{{ url_for('update_order_status', order_id=order.id, status='processing') }}">İşleniyor</a>
+                                                        <a class="dropdown-item" href="{{ url_for('update_order_status', order_id=order.id, status='shipped') }}">Kargoda</a>
+                                                        <a class="dropdown-item" href="{{ url_for('update_order_status', order_id=order.id, status='delivered') }}">Teslim Edildi</a>
+                                                        <div class="dropdown-divider"></div>
+                                                        <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#cancelOrderModal{{ order.id }}">İptal Et</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Order Details Modal -->
+                                            <div class="modal fade" id="orderDetails{{ order.id }}" tabindex="-1" aria-labelledby="orderDetailsLabel{{ order.id }}" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered modal-lg">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-primary text-white">
+                                                            <h5 class="modal-title" id="orderDetailsLabel{{ order.id }}">Sipariş Detayları #{{ order.id }}</h5>
+                                                            <button type="button" class="btn-close" style="filter: invert(1);" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="row mb-4">
+                                                                <div class="col-md-6">
+                                                                    <div class="card h-100">
+                                                                        <div class="card-header">
+                                                                            <h6 class="mb-0">Müşteri Bilgileri</h6>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            <p class="mb-1"><strong>Ad Soyad:</strong> {{ user.username if user else 'Silinmiş Kullanıcı' }}</p>
+                                                                            <p class="mb-1"><strong>E-posta:</strong> {{ user.email if user and user.email else 'Bilinmiyor' }}</p>
+                                                                            <p class="mb-1"><strong>Üyelik Tarihi:</strong> {{ user.created_at.strftime('%d.%m.%Y') if user and user.created_at else 'Bilinmiyor' }}</p>
+                                                                            {% if order.shipping_address %}
+                                                                            <hr>
+                                                                            <p class="mb-1"><strong>Teslimat Adresi:</strong></p>
+                                                                            <p class="mb-0 small">
+                                                                                {{ order.shipping_address.full_name }}<br>
+                                                                                {{ order.shipping_address.phone }}<br>
+                                                                                {{ order.shipping_address.address }}<br>
+                                                                                {{ order.shipping_address.district }}/{{ order.shipping_address.city }}
+                                                                            </p>
+                                                                            {% elif order.address_info %}
+                                                                            <hr>
+                                                                            <p class="mb-1"><strong>Teslimat Adresi:</strong></p>
+                                                                            <p class="mb-0 small">{{ order.address_info }}</p>
+                                                                            {% endif %}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="card h-100">
+                                                                        <div class="card-header">
+                                                                            <h6 class="mb-0">Sipariş Bilgileri</h6>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            <p class="mb-1"><strong>Sipariş Tarihi:</strong> {{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else 'Bilinmiyor' }}</p>
+                                                                            <p class="mb-1"><strong>Durum:</strong> 
+                                                                                <span class="badge badge-{{ 
+                                                                                    'warning' if order.status == 'pending' else
+                                                                                    'info' if order.status == 'processing' else
+                                                                                    'primary' if order.status == 'shipped' else
+                                                                                    'success' if order.status == 'delivered' else
+                                                                                    'danger' if order.status == 'cancelled' else 'secondary'
+                                                                                }}">
+                                                                                    {{ 
+                                                                                        'Bekliyor' if order.status == 'pending' else
+                                                                                        'İşleniyor' if order.status == 'processing' else
+                                                                                        'Kargoda' if order.status == 'shipped' else
+                                                                                        'Teslim Edildi' if order.status == 'delivered' else
+                                                                                        'İptal Edildi' if order.status == 'cancelled' else order.status
+                                                                                    }}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p class="mb-0"><strong>Toplam Tutar:</strong> {{ "%.2f"|format(order.total_price) }} TL</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="card mb-4">
+                                                                <div class="card-header">
+                                                                    <h6 class="mb-0">Sipariş Özeti</h6>
+                                                                </div>
+                                                                <div class="card-body p-0">
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-hover mb-0">
+                                                                            <thead class="bg-light">
+                                                                                <tr>
+                                                                                    <th>Ürün</th>
+                                                                                    <th class="text-center">Fiyat</th>
+                                                                                    <th class="text-center">Adet</th>
+                                                                                    <th class="text-right">Toplam</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {% for item in order.items %}
+                                                                                <tr>
+                                                                                    <td>
+                                                                                        <div class="d-flex align-items-center">
+                                                                                            {% if item and item.product %}
+                                                                                                {% if item.product.images %}
+                                                                                                    {% set main_image = item.product.images|selectattr('is_primary', 'equalto', True)|first or item.product.images|first %}
+                                                                                                    <img src="{{ url_for('static', filename=main_image.image_path) if main_image else url_for('static', filename='images/placeholder.svg') }}" 
+                                                                                                         class="img-thumbnail mr-3" 
+                                                                                                         style="max-width: 50px; max-height: 50px; object-fit: cover;"
+                                                                                                         alt="{{ item.product.name }}">
+                                                                                                {% else %}
+                                                                                                    <img src="{{ url_for('static', filename='images/placeholder.svg') }}" 
+                                                                                                         class="img-thumbnail mr-3" 
+                                                                                                         style="max-width: 50px; max-height: 50px; object-fit: cover;"
+                                                                                                         alt="Ürün resmi yok">
+                                                                                                {% endif %}
+                                                                                                <div>
+                                                                                                    <h6 class="mb-0">{{ item.product.name }}</h6>
+                                                                                                    <small class="text-muted">
+                                                                                                        {% if item.product.brand %}{{ item.product.brand }} • {% endif %}
+                                                                                                        {% if item.product.model %}{{ item.product.model }} • {% endif %}
+                                                                                                        {% if item.product.color %}{{ item.product.color }}{% endif %}
+                                                                                                    </small>
+                                                                                                </div>
+                                                                                            {% else %}
+                                                                                                <span class="text-muted">Silinmiş Ürün</span>
+                                                                                            {% endif %}
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td class="text-center">{{ "%.2f"|format(item.unit_price if item else 0) }} TL</td>
+                                                                                    <td class="text-center">{{ item.quantity if item else 0 }}</td>
+                                                                                    <td class="text-right">{{ "%.2f"|format(item.subtotal if item else 0) }} TL</td>
+                                                                                </tr>
+                                                                                {% endfor %}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                    <div class="card-footer bg-light">
+                                                                        <div class="row">
+                                                                            <div class="col-md-6">
+                                                                                <h6 class="mb-3">Teslimat Adresi</h6>
+                                                                                {% if order.shipping_address %}
+                                                                                    <p class="mb-1"><strong>{{ order.shipping_address.full_name }}</strong></p>
+                                                                                    <p class="mb-1">{{ order.shipping_address.address }}</p>
+                                                                                    <p class="mb-1">{{ order.shipping_address.district }} / {{ order.shipping_address.city }}</p>
+                                                                                    <p class="mb-0"><strong>Telefon:</strong> {{ order.shipping_address.phone }}</p>
+                                                                                {% else %}
+                                                                                    <p class="text-muted mb-0">Teslimat adresi bulunamadı</p>
+                                                                                {% endif %}
+                                                                            </div>
+                                                                            <div class="col-md-6">
+                                                                                <div class="table-responsive">
+                                                                                    <table class="table table-sm">
+                                                                                        <tbody>
+                                                                                            <tr>
+                                                                                                <td class="text-right border-0"><strong>Ara Toplam:</strong></td>
+                                                                                                <td class="text-right border-0">{{ "%.2f"|format(order.total_price) }} TL</td>
+                                                                                            </tr>
+                                                                                            <tr>
+                                                                                                <td class="text-right border-0"><strong>KDV (18%):</strong></td>
+                                                                                                <td class="text-right border-0">{{ "%.2f"|format(order.total_price * 0.18) }} TL</td>
+                                                                                            </tr>
+                                                                                            <tr class="table-active">
+                                                                                                <td class="text-right border-0"><strong>Genel Toplam:</strong></td>
+                                                                                                <td class="text-right border-0"><strong>{{ "%.2f"|format(order.total_price * 1.18) }} TL</strong></td>
+                                                                                            </tr>
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer d-flex justify-content-between">
+                                                            <div class="btn-group">
+                                                                <button type="button" class="btn btn-sm {{ 'btn-warning' if order.status == 'pending' else 'btn-outline-warning' }} update-status" data-order-id="{{ order.id }}" data-status="pending" {{ 'disabled' if order.status == 'pending' else '' }}>
+                                                                    <i class="fas fa-clock"></i> Beklemede
+                                                                </button>
+                                                                <button type="button" class="btn btn-sm {{ 'btn-info' if order.status == 'processing' else 'btn-outline-info' }} update-status" data-order-id="{{ order.id }}" data-status="processing" {{ 'disabled' if order.status == 'processing' else '' }}>
+                                                                    <i class="fas fa-cog fa-spin"></i> İşleniyor
+                                                                </button>
+                                                                <button type="button" class="btn btn-sm {{ 'btn-primary' if order.status == 'shipped' else 'btn-outline-primary' }} update-status" data-order-id="{{ order.id }}" data-status="shipped" {{ 'disabled' if order.status == 'shipped' else '' }}>
+                                                                    <i class="fas fa-truck"></i> Kargoda
+                                                                </button>
+                                                                <button type="button" class="btn btn-sm {{ 'btn-success' if order.status == 'delivered' else 'btn-outline-success' }} update-status" data-order-id="{{ order.id }}" data-status="delivered" {{ 'disabled' if order.status == 'delivered' else '' }}>
+                                                                    <i class="fas fa-check-circle"></i> Teslim Edildi
+                                                                </button>
+                                                            </div>
+                                                            <div>
+                                                                <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelOrderModal{{ order.id }}" {{ 'disabled' if order.status == 'cancelled' else '' }} onclick="closeModal('orderDetails{{ order.id }}')">
+                                                                    <i class="fas fa-times"></i> İptal Et
+                                                                </button>
+                                                                <button type="button" class="btn btn-secondary btn-sm ms-2" data-bs-dismiss="modal" onclick="closeModal('orderDetails{{ order.id }}')">
+                                                                    <i class="fas fa-times"></i> Kapat
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Cancel Order Confirmation Modal -->
+                                            <div class="modal fade" id="cancelOrderModal{{ order.id }}" tabindex="-1" aria-labelledby="cancelOrderModalLabel{{ order.id }}" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-danger text-white">
+                                                            <h5 class="modal-title" id="cancelOrderModalLabel{{ order.id }}">Siparişi İptal Et</h5>
+                                                            <button type="button" class="btn-close" style="filter: invert(1);" data-bs-dismiss="modal" aria-label="Kapat" onclick="closeModal('cancelOrderModal{{ order.id }}')"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <p><strong>Sipariş #{{ order.id }}</strong> numaralı siparişi iptal etmek istediğinize emin misiniz?</p>
+                                                            <p class="mb-0">Bu işlem geri alınamaz. Sipariş durumu "İptal Edildi" olarak güncellenecektir.</p>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="event.stopPropagation();">Kapat</button>
+                                                            <button type="button" class="btn btn-danger" onclick="updateOrderStatus('{{ order.id }}', 'cancelled')">Evet, İptal Et</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td>#{{ order.id if order.id else '' }}</td>
+                                        <td>{{ user.username if user else 'Silinmiş Kullanıcı' }}</td>
+                                        <td colspan="6" class="text-center">Bu siparişte ürün bulunamadı</td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center">Henüz sipariş bulunmamaktadır.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // Function to properly close modals and clean up
+    function closeModal(modalId) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Clean up any remaining backdrops
+        removeAllBackdrops();
+    }
+    
+    // Function to update order status
+    async function updateOrderStatus(orderId, status) {
+        try {
+            const response = await fetch(`/admin/orders/update-status/${orderId}/${status}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Status güncellenirken bir hata oluştu');
+            }
+
+            if (result.success) {
+                // Show success message
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Başarılı!',
+                    text: result.message || 'Sipariş durumu başarıyla güncellendi',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Find and update the status in the UI
+                const statusBadge = document.querySelector(`tr[data-order-id="${orderId}"] .status-badge`);
+                if (statusBadge) {
+                    statusBadge.className = `badge bg-${getStatusBadgeClass(status)} status-badge`;
+                    statusBadge.textContent = result.status_display || status;
+                }
+
+                // Update the status in any open modals
+                const statusInModal = document.querySelector(`#orderDetails${orderId} .order-status`);
+                if (statusInModal) {
+                    statusInModal.className = `badge bg-${getStatusBadgeClass(status)} order-status`;
+                    statusInModal.textContent = result.status_display || status;
+                }
+
+            } else {
+                throw new Error(result.message || 'Bilinmeyen bir hata oluştu');
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            await Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: error.message || 'Sipariş durumu güncellenirken bir hata oluştu',
+                confirmButtonText: 'Tamam'
+            });
+        }
+    }
+    
+    // Helper function to get the appropriate badge class based on status
+    function getStatusBadgeClass(status) {
+        const statusClasses = {
+            'pending': 'warning',
+            'processing': 'info',
+            'shipped': 'primary',
+            'delivered': 'success',
+            'cancelled': 'danger'
+        };
+        return statusClasses[status] || 'secondary';
+    }
+
+    // Initialize modals and event listeners when the document is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click handlers for status update buttons
+        document.querySelectorAll('.update-status').forEach(button => {
+            if (!button) return; // Skip if button doesn't exist
+            
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Safely get dataset values with null checks
+                const orderId = this.getAttribute('data-order-id');
+                const status = this.getAttribute('data-status');
+                
+                if (!orderId || !status) {
+                    console.error('Order ID or status is missing');
+                    return;
+                }
+                
+                // Show confirmation for certain status changes
+                const statusMessages = {
+                    'shipped': 'Sipariş kargoya verildi olarak işaretlenecek. Emin misiniz?',
+                    'delivered': 'Sipariş teslim edildi olarak işaretlenecek. Emin misiniz?',
+                    'cancelled': 'Sipariş iptal edilecek. Emin misiniz?'
+                };
+
+                const message = statusMessages[status] || 'Sipariş durumunu güncellemek istediğinize emin misiniz?';
+                
+                Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: message,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Evet, güncelle!',
+                    cancelButtonText: 'İptal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        updateOrderStatus(orderId, status);
+                    }
+                });
+            });
+        });
+
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        // Handle modal shown event
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('show.bs.modal', function() {
+                // Remove any existing backdrops before showing new modal
+                removeAllBackdrops();
+            });
+            
+            modal.addEventListener('hidden.bs.modal', function() {
+                // Clean up after modal is hidden
+                removeAllBackdrops();
+            });
+        });
+        
+        // Handle escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                removeAllBackdrops();
+            }
+        });
+        
+        // Handle clicks on backdrop
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-backdrop')) {
+                removeAllBackdrops();
+            }
+        });
+    });
+</script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<!-- Toastr JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<!-- Custom Admin Orders JS -->
+<script src="{{ url_for('static', filename='js/admin_orders.js') }}"></script>
+
+<script>
+// Enhanced fix for modal backdrop issues
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to remove all backdrops and reset body
+    function removeAllBackdrops() {
+        // Remove all backdrop elements
+        document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
+            backdrop.remove();
+        });
+        
+        // Remove modal-open class
+        document.body.classList.remove('modal-open');
+        
+        // Reset body styles
+        document.body.style.paddingRight = '';
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+    }
+    
+    // Initialize all modals with Bootstrap
+    var modals = document.querySelectorAll('.modal');
+    var modalInstances = [];
+    
+    modals.forEach(function(modal) {
+        // Initialize modal if not already done
+        var modalInstance = new bootstrap.Modal(modal, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        modalInstances.push(modalInstance);
+        
+        // Handle modal hidden event to clean up
+        modal.addEventListener('hidden.bs.modal', function (event) {
+            removeAllBackdrops();
+        });
+        // When modal is shown
+        modal.addEventListener('show.bs.modal', function() {
+            // Clean up any existing backdrops first
+            removeAllBackdrops();
+        });
+        
+        // When modal is hidden
+        modal.addEventListener('hidden.bs.modal', removeAllBackdrops);
+    });
+    
+    // Handle escape key to properly close modals
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            var activeModal = document.querySelector('.modal.show');
+            if (activeModal) {
+                var bsModal = bootstrap.Modal.getInstance(activeModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+                removeAllBackdrops();
+            }
+        }
+    });
+    
+    // Handle clicks outside the modal
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal-backdrop')) {
+            var activeModal = document.querySelector('.modal.show');
+            if (activeModal) {
+                var bsModal = bootstrap.Modal.getInstance(activeModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+                removeAllBackdrops();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

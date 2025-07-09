@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+
+{% block title %}Favorilerim - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="mb-4">Favori Ürünlerim</h2>
+    
+    {% if products %}
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for product in products %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="position-relative" style="height: 200px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                        {% set main_image = product.images|selectattr('is_primary', 'equalto', True)|first or product.images|first %}
+                        <img src="{{ url_for('static', filename=main_image.image_path) if main_image else url_for('static', filename='images/placeholder.png') }}" 
+                             class="img-fluid p-3" 
+                             alt="{{ product.name }}" 
+                             style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                        <button class="btn btn-link position-absolute top-0 end-0 p-2 favorite-btn" 
+                                data-product-id="{{ product.id }}" 
+                                title="Favorilerden Kaldır">
+                            <i class="fas fa-heart text-danger" style="font-size: 1.5rem;"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text text-muted">{{ product.description[:100] }}...</p>
+                        <p class="h5 text-primary">{{ "%.2f"|format(product.price) }} TL</p>
+                        <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-primary">İncele</a>
+                        <button class="btn btn-outline-success add-to-cart" data-product-id="{{ product.id }}">
+                            <i class="fas fa-shopping-cart"></i> Sepete Ekle
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Henüz favori ürününüz bulunmamaktadır.
+        </div>
+        <a href="{{ url_for('products') }}" class="btn btn-primary">
+            <i class="fas fa-shopping-bag me-2"></i>Alışverişe Başla
+        </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle favorite status
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const icon = this.querySelector('i');
+            
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch(`/favorite/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'removed') {
+                    // If on favorites page, remove the card
+                    if (window.location.pathname === '/favorites') {
+                        this.closest('.col').remove();
+                        // If no favorites left, show message
+                        if (document.querySelectorAll('.col').length === 0) {
+                            window.location.reload();
+                        }
+                    } else {
+                        icon.classList.remove('fas');
+                        icon.classList.add('far');
+                        this.title = 'Favorilere Ekle';
+                    }
+                    showToast('Başarılı', 'Ürün favorilerden kaldırıldı', 'success');
+                } else {
+                    if (window.location.pathname !== '/favorites') {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas');
+                        this.title = 'Favorilerden Kaldır';
+                    }
+                    showToast('Başarılı', 'Ürün favorilere eklendi', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Hata', 'Bir hata oluştu', 'error');
+            });
+        });
+    });
+});
+
+function showToast(title, message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.position = 'fixed';
+        toastContainer.style.top = '20px';
+        toastContainer.style.right = '20px';
+        toastContainer.style.zIndex = '1100';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast show align-items-center text-white bg-${type} border-0`;
+    toast.role = 'alert';
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <strong>${title}</strong><br>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+        </div>
+    `;
+    
+    // Add to container
+    toastContainer.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+            // Remove container if empty
+            if (toastContainer.children.length === 0) {
+                toastContainer.remove();
+            }
+        }, 500);
+    }, 3000);
+}
+
+// Add to cart functionality
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const button = this;
+            
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Show loading state
+            const originalHTML = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ekleniyor...';
+            
+            // Send request to add to cart
+            fetch(`/add_to_cart/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update cart count in navbar
+                    const cartCount = document.getElementById('cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_count;
+                    }
+                    showToast('Başarılı', data.message || 'Ürün sepete eklendi', 'success');
+                } else {
+                    throw new Error(data.message || 'Ürün sepete eklenirken bir hata oluştu');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorMessage = error.message || 'Ürün sepete eklenirken bir hata oluştu';
+                showToast('Hata', errorMessage, 'error');
+            })
+            .finally(() => {
+                // Restore button state
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

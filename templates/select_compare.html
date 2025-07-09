@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Ürün Karşılaştır - {{ main_product.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('product_detail', product_id=main_product.id) }}">{{ main_product.name|truncate(30) }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Karşılaştır</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Ürün Karşılaştır</h2>
+            <p class="lead">"{{ main_product.name }}" ürünü ile karşılaştırmak istediğiniz ürünü seçin:</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Main Product -->
+        <div class="col-md-5 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename=main_product.images[0].image_path) if main_product.images else 'images/placeholder.png' }}" 
+                         class="img-fluid mb-3" 
+                         alt="{{ main_product.name }}"
+                         style="max-height: 200px; width: auto;">
+                    <h5 class="card-title">{{ main_product.name }}</h5>
+                    <h6 class="text-primary">{{ "%.2f"|format(main_product.price) }} TL</h6>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compare With -->
+        <div class="col-md-7">
+            <div class="row">
+                {% for product in products %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <img src="{{ url_for('static', filename=product.images[0].image_path) if product.images else 'images/placeholder.png' }}" 
+                                 class="img-fluid mb-3" 
+                                 alt="{{ product.name }}"
+                                 style="max-height: 150px; width: auto;">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <h6 class="text-primary">{{ "%.2f"|format(product.price) }} TL</h6>
+                            <a href="{{ url_for('compare_products', product_id=main_product.id, with=product.id) }}" 
+                               class="btn btn-outline-primary mt-2">
+                                Bu Ürünle Karşılaştır
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

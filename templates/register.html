@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Kayıt Ol - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Yeni Hesap Oluştur</h2>
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">Kullanıcı Adı</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">E-posta Adresi</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label">Şifre</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <label for="confirm_password" class="form-label">Şifre Tekrar</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                            </div>
+                        </div>
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="terms" required>
+                            <label class="form-check-label" for="terms">
+                                <a href="#">Kullanım koşullarını</a> ve <a href="#">gizlilik politikasını</a> okudum, kabul ediyorum.
+                            </label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">Hesap Oluştur</button>
+                        </div>
+                    </form>
+                    <hr class="my-4">
+                    <div class="text-center">
+                        <p class="mb-0">Zaten bir hesabınız var mı? <a href="{{ url_for('login') }}">Giriş Yapın</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Client-side password match validation
+const password = document.getElementById("password");
+const confirm_password = document.getElementById("confirm_password");
+
+function validatePassword() {
+  if(password.value !== confirm_password.value) {
+    confirm_password.setCustomValidity("Şifreler eşleşmiyor!");
+  } else {
+    confirm_password.setCustomValidity('');
+  }
+}
+
+password.onchange = validatePassword;
+confirm_password.onkeyup = validatePassword;
+</script>
+{% endblock %}
+{% endblock %}

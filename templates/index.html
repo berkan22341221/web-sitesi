@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa - Çağrı İletişim{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-light py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h1 class="display-4 fw-bold mb-4">En Yeni Teknoloji Ürünleri</h1>
+                <p class="lead mb-4">Telefon ve aksesuarlarda en iyi fiyat garantisiyle sizlerle!</p>
+                <a href="{{ url_for('products') }}" class="btn btn-primary btn-lg">Alışverişe Başla</a>
+            </div>
+            <div class="col-md-6">
+                <img src="{{ url_for('static', filename='images/ÇAĞRI İLETİŞİM.png') }}" alt="PhoneShop" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section class="featured-products py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Öne Çıkan Ürünler</h2>
+        <div class="row">
+            {% for product in featured_products %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    <div class="card-img-top" style="height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa;">
+                        <img src="{{ url_for('static', filename=product.image) }}" 
+                             class="img-fluid" 
+                             alt="{{ product.name }}" 
+                             style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="text-muted">{{ "Telefon" if product.category == "phone" else "Aksesuar" }}</p>
+                        <p class="card-text fw-bold text-primary mt-auto">{{ "%.2f"|format(product.price) }} TL</p>
+                        <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-primary w-100 mt-2">İncele</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('products') }}" class="btn btn-primary">Tüm Ürünleri Gör</a>
+        </div>
+    </div>
+</section>
+
+<!-- Categories -->
+<section class="categories py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">Kategoriler</h2>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card text-white bg-dark">
+                    <div class="card-body text-center p-5">
+                        <i class="fas fa-mobile-alt fa-4x mb-3"></i>
+                        <h3>Telefonlar</h3>
+                        <p>En yeni akıllı telefon modelleri</p>
+                        <a href="{{ url_for('products', category='phone') }}" class="btn btn-light">İncele</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center p-5">
+                        <i class="fas fa-headphones fa-4x mb-3"></i>
+                        <h3>Aksesuarlar</h3>
+                        <p>Telefon aksesuarları ve yedek parçalar</p>
+                        <a href="{{ url_for('products', category='accessory') }}" class="btn btn-light">İncele</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Choose Us -->
+<section class="why-choose-us py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Neden Bizi Tercih Etmelisiniz?</h2>
+        <div class="row text-center">
+            <div class="col-md-3 mb-4">
+                <div class="p-4">
+                    <i class="fas fa-truck fa-3x text-primary mb-3"></i>
+                    <h4>Hızlı Kargo</h4>
+                    <p class="text-muted">Siparişleriniz en kısa sürede adresinizde</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="p-4">
+                    <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                    <h4>Güvenli Alışveriş</h4>
+                    <p class="text-muted">%100 güvenli alışveriş garantisi</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="p-4">
+                    <i class="fas fa-undo fa-3x text-primary mb-3"></i>
+                    <h4>Kolay İade</h4>
+                    <p class="text-muted">14 gün içinde iade garantisi</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="p-4">
+                    <i class="fas fa-headset fa-3x text-primary mb-3"></i>
+                    <h4>7/24 Destek</h4>
+                    <p class="text-muted">Uzman müşteri hizmetleri</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

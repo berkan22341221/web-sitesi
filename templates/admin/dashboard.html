@@ -1,0 +1,654 @@
+{% extends "admin/base.html" %}
+
+{% block head %}
+{{ super() }}
+<!-- SweetAlert2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css" rel="stylesheet">
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"></script>
+<script>
+    // Debug information
+    console.log("Admin Dashboard Loaded");
+    
+    // Simple debug function
+    function debugLog(name, value) {
+        const val = (value === undefined || value === null) ? 0 : value;
+        console.log('[DEBUG] ' + name + ':', val);
+    }
+    
+    // Initialize variables with defaults using data attributes
+    const dashboardStats = document.createElement('div');
+    dashboardStats.setAttribute('id', 'dashboard-stats');
+    dashboardStats.setAttribute('data-total-products', '{{ total_products|default(0) }}');
+    dashboardStats.setAttribute('data-total-orders', '{{ total_orders|default(0) }}');
+    dashboardStats.setAttribute('data-total-users', '{{ total_users|default(0) }}');
+    
+    // Add orders data as a JSON string in a data attribute
+    dashboardStats.setAttribute('data-orders', '{{ recent_orders|tojson|safe }}');
+    
+    // Set display to none to keep it hidden
+    dashboardStats.style.display = 'none';
+    document.body.appendChild(dashboardStats);
+    
+    // Get stats from data attributes
+    const stats = {
+        total_products: parseInt(dashboardStats.getAttribute('data-total-products')) || 0,
+        total_orders: parseInt(dashboardStats.getAttribute('data-total-orders')) || 0,
+        total_users: parseInt(dashboardStats.getAttribute('data-total-users')) || 0
+    };
+    
+    // Log basic statistics
+    debugLog("Total Products", stats.total_products);
+    debugLog("Total Orders", stats.total_orders);
+    debugLog("Total Users", stats.total_users);
+    
+    // Debug function to log order data
+    function logOrderData() {
+        try {
+            // Get orders data from a data attribute instead of direct template injection
+            const ordersData = document.getElementById('dashboard-stats').getAttribute('data-orders');
+            if (!ordersData) {
+                console.log('No orders data found');
+                return;
+            }
+            
+            const orders = JSON.parse(ordersData);
+            console.log('Orders data:', orders);
+            
+            // Log each order's structure
+            if (orders && Array.isArray(orders)) {
+                console.log(`Found ${orders.length} orders`);
+                orders.forEach((order, index) => {
+                    if (order && typeof order === 'object') {
+                        console.log(`Order ${index + 1}:`, {
+                            id: order.id || 'N/A',
+                            status: order.status || 'unknown',
+                            itemCount: (order.items && Array.isArray(order.items)) ? order.items.length : 0,
+                            user: (order.user && order.user.username) ? order.user.username : 'No user'
+                        });
+                    }
+                });
+            } else {
+                console.log('No valid orders array found');
+            }
+        } catch (e) {
+            console.error('Error logging order data:', e);
+        }
+    }
+
+    // Function to update order status in the UI
+    function updateOrderStatusInUI(orderId, newStatus, statusDisplay, statusClass) {
+        console.log(`Updating UI for order ${orderId} to status ${newStatus}`);
+        
+        // Update in the orders table
+        const statusBadge = document.querySelector(`tr[data-order-id="${orderId}"] .status-badge`);
+        if (statusBadge) {
+            statusBadge.className = `badge bg-${statusClass} status-badge`;
+            statusBadge.textContent = statusDisplay;
+        }
+        
+        // Update action buttons based on the new status
+        updateActionButtons(orderId, newStatus);
+    }
+    
+    // Function to update action buttons based on order status
+    function updateActionButtons(orderId, newStatus) {
+        const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+        if (!row) return;
+        
+        const buttonContainer = row.querySelector('.action-buttons');
+        if (!buttonContainer) return;
+        
+        // Clear existing buttons
+        buttonContainer.innerHTML = '';
+        
+        // Add view button
+        const viewBtn = document.createElement('a');
+        viewBtn.href = '#';
+        viewBtn.className = 'btn btn-primary btn-sm me-1';
+        viewBtn.title = 'Görüntüle';
+        viewBtn.setAttribute('data-bs-toggle', 'modal');
+        viewBtn.setAttribute('data-bs-target', `#orderDetails${orderId}`);
+        viewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+        buttonContainer.appendChild(viewBtn);
+        
+        // Add action buttons based on status
+        if (newStatus !== 'cancelled' && newStatus !== 'delivered') {
+            if (newStatus === 'pending') {
+                // For pending orders, show process and cancel buttons
+                const processBtn = createActionButton('İşleme Al', 'processing', 'check', 'success', orderId);
+                const shipBtn = createActionButton('Kargoya Ver', 'shipped', 'truck', 'warning', orderId);
+                const cancelBtn = createActionButton('İptal Et', 'cancelled', 'times', 'danger', orderId);
+                
+                buttonContainer.appendChild(processBtn);
+                buttonContainer.appendChild(shipBtn);
+                buttonContainer.appendChild(cancelBtn);
+            } else if (newStatus === 'processing') {
+                // For processing orders, show ship and cancel buttons
+                const shipBtn = createActionButton('Kargoya Ver', 'shipped', 'truck', 'primary', orderId);
+                const cancelBtn = createActionButton('İptal Et', 'cancelled', 'times', 'danger', orderId);
+                
+                buttonContainer.appendChild(shipBtn);
+                buttonContainer.appendChild(cancelBtn);
+            } else if (newStatus === 'shipped') {
+                // For shipped orders, show deliver and cancel buttons
+                const deliverBtn = createActionButton('Teslim Edildi', 'delivered', 'check-double', 'success', orderId);
+                const cancelBtn = createActionButton('İptal Et', 'cancelled', 'times', 'danger', orderId);
+                
+                buttonContainer.appendChild(deliverBtn);
+                buttonContainer.appendChild(cancelBtn);
+            }
+        }
+    }
+    
+    // Helper function to create action buttons
+    function createActionButton(title, status, icon, btnClass, orderId) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `btn btn-${btnClass} btn-sm me-1 update-status`;
+        btn.title = title;
+        btn.setAttribute('data-order-id', orderId);
+        btn.setAttribute('data-status', status);
+        btn.innerHTML = `<i class="fas fa-${icon}"></i>`;
+        return btn;
+    }
+    
+    // Function to handle order status update
+    async function handleStatusUpdate(button) {
+        const orderId = button.getAttribute('data-order-id');
+        const newStatus = button.getAttribute('data-status');
+        
+        if (!orderId || !newStatus) {
+            console.error('Missing order ID or status');
+            return;
+        }
+        
+        // Show loading state
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        button.disabled = true;
+        
+        try {
+            const response = await fetch(`/admin/orders/update-status/${orderId}/${newStatus}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update the UI
+                const statusEvent = new CustomEvent('orderStatusUpdated', {
+                    detail: {
+                        orderId: orderId,
+                        newStatus: newStatus,
+                        statusDisplay: result.status_display || newStatus,
+                        statusClass: result.status_class || 'secondary'
+                    }
+                });
+                document.dispatchEvent(statusEvent);
+                
+                // Show success message
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Başarılı!',
+                    text: result.message || 'Sipariş durumu güncellendi',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                throw new Error(result.message || 'Bilinmeyen bir hata oluştu');
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: error.message || 'Sipariş durumu güncellenirken bir hata oluştu',
+                confirmButtonText: 'Tamam'
+            });
+            
+            // Restore button state
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    }
+
+    // Check for builtin_function_or_method errors on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded");
+        
+        // Log order data for debugging
+        logOrderData();
+        
+        // Remove the temporary stats element
+        if (dashboardStats && dashboardStats.parentNode) {
+            dashboardStats.parentNode.removeChild(dashboardStats);
+        }
+        
+        // Find any elements that might contain the error
+        const elements = document.querySelectorAll('*');
+        let foundError = false;
+        
+        elements.forEach(function(el) {
+            if (el.textContent && el.textContent.includes('builtin_function_or_method')) {
+                console.error("Found 'builtin_function_or_method' in element:", el);
+                el.style.border = '2px solid red';
+                foundError = true;
+            }
+        });
+        
+        if (!foundError) {
+            console.log("No 'builtin_function_or_method' errors found in the DOM");
+        }
+
+        // Listen for order status updates
+        document.addEventListener('orderStatusUpdated', function(e) {
+            const { orderId, newStatus, statusDisplay, statusClass } = e.detail;
+            updateOrderStatusInUI(orderId, newStatus, statusDisplay, statusClass);
+        });
+
+        // Add click handlers for status update buttons using event delegation
+        document.addEventListener('click', function(e) {
+            // Check if the clicked element or its parent has the update-status class
+            const button = e.target.closest('.update-status');
+            if (button) {
+                e.preventDefault();
+                handleStatusUpdate(button);
+            }
+        });
+        
+        // Initialize action buttons for existing orders
+        document.querySelectorAll('.order-row').forEach(row => {
+            const orderId = row.getAttribute('data-order-id');
+            const statusBadge = row.querySelector('.status-badge');
+            if (statusBadge) {
+                const status = statusBadge.textContent.trim();
+                // Convert status text back to status code
+                const statusMap = {
+                    'Teslim Edildi': 'delivered',
+                    'İptal Edildi': 'cancelled',
+                    'Kargoda': 'shipped',
+                    'İşleniyor': 'processing',
+                    'Beklemede': 'pending'
+                };
+                const statusCode = statusMap[status] || 'pending';
+                updateActionButtons(orderId, statusCode);
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block admin_title %}Gösterge Paneli{% endblock %}
+
+{% block page_title %}Genel Bakış{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ url_for('add_product') }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-plus me-1"></i> Yeni Ürün Ekle
+    </a>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Toplam Ürün</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_products|default(0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-box fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+                
+        <div class="col-md-6 col-lg-3 mb-4">
+            <a href="{{ url_for('manage_users') }}" class="text-decoration-none">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Kullanıcı Yönetimi</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users|default(0) }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-users fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Toplam Sipariş</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{% if total_revenue is defined %}{{ "%.2f"|format(total_revenue) }}{% else %}0.00{% endif %} ₺</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Toplam Kullanıcı</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Stokta Azalan Ürünler</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if low_stock_products is defined and low_stock_products is iterable %}
+                                    {{ low_stock_products|length|default(0) }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Son Siparişler</h6>
+            <a href="{{ url_for('admin_orders') }}" class="btn btn-sm btn-outline-primary">
+                Tümünü Gör <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Ürün</th>
+                            <th>Miktar</th>
+                            <th>Tutar</th>
+                            <th>Tarih</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        {% if not recent_orders or not recent_orders|list %}
+                            <tr>
+                                <td colspan="8" class="text-center">Henüz sipariş bulunmuyor</td>
+                            </tr>
+                        {% else %}
+                            {% for order in recent_orders %}
+                                {% if order %}
+                                    {% set order_loop = loop %}
+                                    {% set order_id = order.get('id', 0) %}
+                                    {% set order_user = order.get('user', {}) %}
+                                    {% set order_status = order.get('status', 'pending') %}
+                                    {% set order_created_at = order.get('created_at') %}
+                                    {% set order_items = order.get('items', []) %}
+                                    
+                                    {% if not order_items %}
+                                        <tr class="order-row" data-order-id="{{ order_id }}">
+                                            <td>#{{ '%04d'|format(order_id) }}</td>
+                                            <td>{{ order_user.get('username', 'Silinmiş Kullanıcı') }}</td>
+                                            <td colspan="5" class="text-center">Bu siparişte ürün bulunamadı</td>
+                                            <td>
+                                                <span class="badge bg-secondary">Ürün Yok</span>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        {% for item in order_items %}
+                                            <tr class="order-row" data-order-id="{{ order_id }}">
+                                                <td>#{{ '%04d'|format(order_id) }}</td>
+                                                <td>{{ order_user.get('username', 'Silinmiş Kullanıcı') }}</td>
+                                                <td>{{ item.get('product', {}).get('name', 'Bilinmeyen Ürün') }}</td>
+                                                <td>{{ item.get('quantity', 0) }}</td>
+                                                <td>{{ '%.2f TL'|format(item.get('subtotal', 0)) }}</td>
+                                                <td>
+                                                    {% if order_created_at is defined and order_created_at %}
+                                                        {% if order_created_at is string %}
+                                                            {{ order_created_at }}
+                                                        {% else %}
+                                                            {{ order_created_at|datetimeformat('%d.%m.%Y %H:%M') }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        Bilinmeyen Tarih
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% set status_classes = {
+                                                        'delivered': 'success',
+                                                        'cancelled': 'danger',
+                                                        'shipped': 'primary',
+                                                        'processing': 'info',
+                                                        'pending': 'warning'
+                                                    } %}
+                                                    {% set status_text = {
+                                                        'delivered': 'Teslim Edildi',
+                                                        'cancelled': 'İptal Edildi',
+                                                        'shipped': 'Kargoda',
+                                                        'processing': 'İşleniyor',
+                                                        'pending': 'Beklemede'
+                                                    } %}
+                                                    <span class="badge bg-{{ status_classes.get(order_status, 'secondary') }} status-badge">
+                                                        {{ status_text.get(order_status, order_status|title) }}
+                                                    </span>
+                                                </td>
+                                                <td class="action-buttons">
+                                                    <!-- Buttons will be dynamically generated by JavaScript -->
+                                                </td>
+                                            </tr>
+                                        {% else %}
+                                            <tr>
+                                                <td>#{{ '%04d'|format(order_id) }}</td>
+                                                <td>{{ order_user.get('username', 'Silinmiş Kullanıcı') }}</td>
+                                                <td colspan="6" class="text-center">Bu siparişte ürün bulunamadı</td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Products -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Son Eklenen Ürünler</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Ürün Adı</th>
+                                    <th>Kategori</th>
+                                    <th>Fiyat</th>
+                                    <th>Stok</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in recent_products %}
+                                <tr>
+                                    <td>{{ product.name|default('İsimsiz Ürün') }}</td>
+                                    <td>{{ product.category|default('Kategorisiz') }}</td>
+                                    <td>{{ "%.2f"|format(product.price|default(0)) }} TL</td>
+                                    <td>{{ product.stock|default(0) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">Henüz ürün bulunmuyor</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Users -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Son Kayıt Olan Kullanıcılar</h6>
+                    <a href="{{ url_for('manage_users') }}" class="btn btn-sm btn-outline-primary">Tümünü Gör</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.username|default('İsimsiz Kullanıcı') }}</td>
+                                    <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else 'Bilinmiyor' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center">Henüz kullanıcı bulunmuyor</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .card-header {
+        background-color: #f8f9fc;
+        border-bottom: 1px solid #e3e6f0;
+        border-top-left-radius: 10px !important;
+        border-top-right-radius: 10px !important;
+    }
+    
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+    
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+    
+    .border-left-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+    
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+    
+    .text-xs {
+        font-size: 0.7rem;
+    }
+    
+    .text-gray-300 {
+        color: #dddfeb !important;
+    }
+    
+    .text-gray-800 {
+        color: #5a5c69 !important;
+    }
+    
+    .table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        color: #4e73df;
+        background-color: #f8f9fc;
+    }
+    
+    .badge {
+        font-weight: 500;
+        padding: 0.35em 0.65em;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .h3, h1, h2, h3, h4, h5, h6 {
+        color: #4e73df;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// You can add any admin-specific JavaScript here
+</script>
+{% endblock %}

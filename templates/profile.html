@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Profilim - {{ current_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Profil Bilgilerim</h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('profile') }}" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">Kullanıcı Adı</label>
+                                <input type="text" class="form-control" id="username" name="username" 
+                                       value="{{ form.username.data or current_user.username }}" required>
+                                <div class="invalid-feedback">
+                                    Lütfen bir kullanıcı adı girin.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">E-posta Adresi</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ form.email.data or current_user.email }}" required>
+                                <div class="invalid-feedback">
+                                    Lütfen geçerli bir e-posta adresi girin.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="change_password" name="change_password">
+                                <label class="form-check-label" for="change_password">
+                                    Şifremi Değiştir
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="password_fields" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="current_password" class="form-label">Mevcut Şifre</label>
+                                    <input type="password" class="form-control" id="current_password" name="current_password">
+                                    <div class="invalid-feedback">
+                                        Lütfen mevcut şifrenizi girin.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="new_password" class="form-label">Yeni Şifre</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password">
+                                    <div class="invalid-feedback">
+                                        Lütfen yeni bir şifre girin (en az 8 karakter).
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="confirm_password" class="form-label">Yeni Şifre (Tekrar)</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                                    <div class="invalid-feedback">
+                                        Şifreler eşleşmiyor.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Değişiklikleri Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-muted d-flex justify-content-between align-items-center">
+                    <span>Üyelik Tarihi: {{ current_user.created_at.strftime('%d.%m.%Y') }}</span>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide password fields
+    const changePasswordCheckbox = document.getElementById('change_password');
+    const passwordFields = document.getElementById('password_fields');
+    
+    changePasswordCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            passwordFields.style.display = 'block';
+        } else {
+            passwordFields.style.display = 'none';
+        }
+    });
+    
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            // Check if password fields are visible and validate them
+            if (changePasswordCheckbox.checked) {
+                const currentPassword = document.getElementById('current_password');
+                const newPassword = document.getElementById('new_password');
+                const confirmPassword = document.getElementById('confirm_password');
+                
+                // Reset custom validation
+                currentPassword.setCustomValidity('');
+                newPassword.setCustomValidity('');
+                confirmPassword.setCustomValidity('');
+                
+                // Check if new password is at least 8 characters
+                if (newPassword.value.length > 0 && newPassword.value.length < 8) {
+                    newPassword.setCustomValidity('Şifre en az 8 karakter olmalıdır.');
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                // Check if passwords match
+                if (newPassword.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('Şifreler eşleşmiyor.');
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            }
+            
+            form.classList.add('was-validated');
+        }, false);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}{{ main_product.name }} vs {{ compare_product.name }} - Ürün Karşılaştırma{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Ana Sayfa</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('product_detail', product_id=main_product.id) }}">{{ main_product.name|truncate(20) }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Karşılaştır</li>
+        </ol>
+    </nav>
+
+    <h2 class="mb-4">Ürün Karşılaştırma</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename=main_product.images[0].image_path) if main_product.images else 'images/placeholder.png' }}" 
+                         class="img-fluid mb-3" 
+                         alt="{{ main_product.name }}"
+                         style="max-height: 200px; width: auto;">
+                    <h4>{{ main_product.name }}</h4>
+                    <h5 class="text-primary">{{ "%.2f"|format(main_product.price) }} TL</h5>
+                    <a href="{{ url_for('product_detail', product_id=main_product.id) }}" class="btn btn-outline-primary mt-2">
+                        Ürün Sayfasına Git
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename=compare_product.images[0].image_path) if compare_product.images else 'images/placeholder.png' }}" 
+                         class="img-fluid mb-3" 
+                         alt="{{ compare_product.name }}"
+                         style="max-height: 200px; width: auto;">
+                    <h4>{{ compare_product.name }}</h4>
+                    <h5 class="text-{{ 'danger' if compare_product.price > main_product.price else 'success' }}">
+                        {{ "%.2f"|format(compare_product.price) }} TL
+                        {% if compare_product.price > main_product.price %}
+                            <span class="badge bg-danger ms-2">%{{ "%.1f"|format((compare_product.price/main_product.price - 1) * 100) }} daha pahalı</span>
+                        {% elif compare_product.price < main_product.price %}
+                            <span class="badge bg-success ms-2">%{{ "%.1f"|format((1 - compare_product.price/main_product.price) * 100) }} daha ucuz</span>
+                        {% else %}
+                            <span class="badge bg-secondary ms-2">Aynı fiyat</span>
+                        {% endif %}
+                    </h5>
+                    <a href="{{ url_for('product_detail', product_id=compare_product.id) }}" class="btn btn-outline-primary mt-2">
+                        Ürün Sayfasına Git
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Specifications -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Teknik Özellikler</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0">
+                <tbody>
+                    {% for spec in all_specs %}
+                    <tr>
+                        <th style="width: 30%;">{{ spec }}</th>
+                        <td style="width: 35%;">{{ main_specs.get(spec, '-') }}</td>
+                        <td style="width: 35%;">
+                            {% if spec in compare_specs %}
+                                {% if compare_specs[spec] == main_specs.get(spec) %}
+                                    <span class="text-success">{{ compare_specs[spec] }}</span>
+                                {% else %}
+                                    <span class="text-danger">{{ compare_specs[spec] }}</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('compare_products', product_id=main_product.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-exchange-alt me-2"></i>Başka Bir Ürünle Karşılaştır
+        </a>
+    </div>
+</div>
+{% endblock %}
